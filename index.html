@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CINE SCRIPT Studio // 电影感脚本与语速工作台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+            cinzel: ['Cinzel', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            studio: {
+              bg: '#0E0D0C',
+              card: '#161513',
+              border: '#282521',
+              gold: '#D49E55',
+              bronze: '#9E7747',
+              rust: '#B85B43',
+              paper: '#E6E0D3',
+              muted: '#7A7365'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0E0D0C; color: #E6E0D3; }
+    textarea, input, select { background-color: #121110; border-color: #282521; }
+    textarea:focus, input:focus, select:focus { outline: none; border-color: #D49E55; }
+    .grain-overlay {
+      background-image: radial-gradient(rgba(212, 158, 85, 0.03) 1px, transparent 0);
+      background-size: 24px 24px;
+    }
+  </style>
+</head>
+<body class="min-h-screen grain-overlay font-serif antialiased p-4 md:p-8">
+
+  <div class="max-w-7xl mx-auto space-y-8">
+    
+    <!-- 顶部电影感 Header -->
+    <header class="flex flex-col md:flex-row md:items-end justify-between pb-6 border-b border-studio-border gap-6">
+      <div>
+        <div class="flex items-center gap-3 text-xs tracking-widest text-studio-gold font-cinzel font-bold mb-1">
+          <span class="inline-block w-2 h-2 rounded-full bg-studio-rust animate-pulse"></span>
+          CINE SCRIPT STUDIO // DIRECTOR'S CUT
+        </div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-studio-paper">
+          电影质感 · 脚本与语速工作台
+        </h1>
+        <p class="text-studio-muted text-xs md:text-sm mt-1 font-sans">
+          捕捉镜头韵律，精确计算呼吸留白，打造沉浸式视频叙事
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 font-sans text-xs">
+        <button onclick="clearAll()" class="px-3 py-2 bg-studio-card hover:bg-studio-border text-studio-muted hover:text-studio-paper border border-studio-border transition rounded">
+          重置画布
+        </button>
+        <button onclick="exportMarkdown()" class="px-5 py-2.5 bg-studio-gold hover:bg-yellow-600 text-studio-bg font-bold tracking-wider uppercase transition shadow-lg shadow-studio-gold/10 rounded">
+          导出导演脚本 (.md)
+        </button>
+      </div>
+    </header>
+
+    <!-- 电影场记板仪表盘 -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+      
+      <div class="bg-studio-card border border-studio-border p-5 rounded-lg relative overflow-hidden">
+        <div class="text-studio-muted text-[11px] font-cinzel tracking-widest uppercase">Words Count / 纯字数</div>
+        <div id="statWords" class="text-3xl font-bold font-mono text-studio-paper mt-2">0</div>
+        <div class="text-[10px] text-studio-muted mt-1">不含停顿标记</div>
+      </div>
+
+      <div class="bg-studio-card border border-studio-border p-5 rounded-lg relative overflow-hidden">
+        <div class="text-studio-muted text-[11px] font-cinzel tracking-widest uppercase">Pause & Silence / 留白</div>
+        <div id="statPauses" class="text-3xl font-bold font-mono text-studio-rust mt-2">0.0s</div>
+        <div class="text-[10px] text-studio-muted mt-1">情绪停顿 & 空镜头</div>
+      </div>
+
+      <div class="bg-studio-card border border-studio-border p-5 rounded-lg relative overflow-hidden">
+        <div class="text-studio-muted text-[11px] font-cinzel tracking-widest uppercase">EST. RUNTIME / 预估时长</div>
+        <div id="statDuration" class="text-3xl font-extrabold font-mono text-studio-gold mt-2">00:00</div>
+        <div class="text-[10px] text-studio-gold/70 mt-1">含口播与停顿总和</div>
+      </div>
+
+      <div class="bg-studio-card border border-studio-border p-5 rounded-lg relative overflow-hidden">
+        <div class="text-studio-muted text-[11px] font-cinzel tracking-widest uppercase">Shot Count / 分镜数</div>
+        <div id="statShots" class="text-3xl font-bold font-mono text-studio-paper mt-2">0</div>
+        <div class="text-[10px] text-studio-muted mt-1">当前拆解镜头数</div>
+      </div>
+
+      <div class="bg-studio-card border border-studio-border p-5 rounded-lg flex flex-col justify-between">
+        <div class="text-studio-muted text-[11px] font-cinzel tracking-widest uppercase">Tempo / 语速基准</div>
+        <select id="speedSelect" onchange="calculateStats()" class="mt-2 text-xs bg-studio-bg border border-studio-border text-studio-paper rounded p-2 focus:ring-1 focus:ring-studio-gold">
+          <option value="180">📖 电影感慢讲述 (180字/分)</option>
+          <option value="240" selected>🎬 标准纪录片/口播 (240字/分)</option>
+          <option value="300">⚡ 节奏短视频 (300字/分)</option>
+          <option value="360">🔥 极速干货 (360字/分)</option>
+        </select>
+        <div class="text-[10px] text-studio-gold mt-1 cursor-pointer hover:underline" onclick="scrollToTester()">
+          🎯 测量我的真实语速 ↓
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 中部：文案创作区 & 实时语速测算仪 -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- 主文案草稿箱 -->
+      <div class="lg:col-span-8 bg-studio-card border border-studio-border p-6 rounded-lg space-y-4">
+        <div class="flex justify-between items-center border-b border-studio-border/60 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-studio-gold text-sm">✍️</span>
+            <h2 class="text-base font-bold tracking-wide text-studio-paper">全篇叙事文案 (Script Draft)</h2>
+          </div>
+          <span class="text-xs text-studio-muted font-sans">
+            插入 <code class="text-studio-gold font-mono">[2s]</code> 或 <code class="text-studio-gold font-mono">[停顿3秒]</code> 设定情绪留白
+          </span>
+        </div>
+        
+        <textarea id="fullScript" oninput="calculateStats()" rows="10" placeholder="在此输入或粘贴你的视频文案...&#10;&#10;示例：&#10;把时间倒退 10 秒，回到故事发生的这一刻。[3s]&#10;很多人以为镜头语言只是摄影师的事，但真正打动人的，往往是文字停顿里的呼吸感。[2s]" class="w-full bg-studio-bg border border-studio-border rounded-lg p-4 text-studio-paper text-sm leading-relaxed font-sans focus:ring-1 focus:ring-studio-gold"></textarea>
+
+        <div class="flex items-center gap-3 pt-2 font-sans text-xs">
+          <span class="text-studio-muted">快捷插入停顿：</span>
+          <button onclick="insertPauseTag(1)" class="px-2.5 py-1 bg-studio-bg hover:bg-studio-border text-studio-gold border border-studio-border rounded transition">+1秒留白</button>
+          <button onclick="insertPauseTag(2)" class="px-2.5 py-1 bg-studio-bg hover:bg-studio-border text-studio-gold border border-studio-border rounded transition">+2秒停顿</button>
+          <button onclick="insertPauseTag(3)" class="px-2.5 py-1 bg-studio-bg hover:bg-studio-border text-studio-gold border border-studio-border rounded transition">+3秒长镜头</button>
+          <button onclick="insertPauseTag(5)" class="px-2.5 py-1 bg-studio-bg hover:bg-studio-border text-studio-gold border border-studio-border rounded transition">+5秒无声展示</button>
+        </div>
+      </div>
+
+      <!-- 右侧：真实语速测算仪 & 电影感 Hook 库 -->
+      <div class="lg:col-span-4 space-y-6">
+        
+        <!-- 🎙️ 真实语速测算仪 -->
+        <div id="speedTesterPanel" class="bg-studio-card border border-studio-gold/40 p-5 rounded-lg space-y-3 relative">
+          <div class="flex items-center justify-between border-b border-studio-border pb-2">
+            <span class="text-xs font-bold text-studio-gold font-cinzel tracking-wider uppercase">🎙️ 真实语速校准 (Speed Meter)</span>
+            <span id="testStatus" class="text-[10px] text-studio-muted">点击开始朗读</span>
+          </div>
+
+          <p class="text-xs text-studio-muted leading-relaxed font-sans">
+            亲自朗读下方示范段落，系统将精准测量你每分钟能说多少字：
+          </p>
+
+          <div class="bg-studio-bg p-3 rounded border border-studio-border text-xs text-studio-paper/90 leading-relaxed font-serif italic">
+            <textarea id="testText" rows="3" class="w-full bg-transparent border-0 p-0 text-xs focus:ring-0 text-studio-paper italic">电影不是字数的堆砌，而是画面与声音交织的流动艺术。当你放慢语速，每一个发音都有了重量。</textarea>
+          </div>
+
+          <div class="flex items-center justify-between pt-1 font-sans">
+            <div class="text-xs">
+              用时: <span id="testTimerDisplay" class="font-mono font-bold text-studio-gold text-sm">0.0s</span>
+            </div>
+            <div class="flex gap-2">
+              <button id="startTestBtn" onclick="startSpeedTest()" class="px-3 py-1.5 bg-studio-gold text-studio-bg font-bold text-xs rounded hover:bg-yellow-600 transition">
+                ▶ 开始朗读
+              </button>
+              <button id="stopTestBtn" onclick="stopSpeedTest()" class="px-3 py-1.5 bg-studio-rust text-white font-bold text-xs rounded hover:bg-red-700 transition hidden animate-pulse">
+                ⏹ 结束朗读
+              </button>
+            </div>
+          </div>
+
+          <div id="testResultBox" class="hidden pt-2 border-t border-studio-border flex items-center justify-between">
+            <span class="text-xs text-studio-paper">实测语速: <strong id="testedWpmResult" class="text-studio-gold text-base font-mono">0</strong> 字/分</span>
+            <button id="applyWpmBtn" onclick="applyTestedWpm()" class="px-2.5 py-1 bg-studio-border hover:bg-studio-gold hover:text-studio-bg text-studio-gold text-xs rounded transition font-sans">
+              应用到此脚本
+            </button>
+          </div>
+        </div>
+
+        <!-- 💡 电影感 Hook 灵感库 -->
+        <div class="bg-studio-card border border-studio-border p-5 rounded-lg space-y-3 font-sans">
+          <div class="text-xs font-bold text-studio-paper tracking-wide border-b border-studio-border pb-2">
+            🎞️ 电影感 Hook / 开场灵感
+          </div>
+          <div class="space-y-2 text-xs">
+            <button onclick="insertHook('把时间倒退10秒，回到故事发生的那一刻… [2s]')" class="w-full text-left p-2.5 bg-studio-bg hover:bg-studio-border text-studio-paper rounded border border-studio-border transition truncate">
+              ⏳ "把时间倒退10秒，回到…"
+            </button>
+            <button onclick="insertHook('如果有人告诉你[X]很容易，千万别信。[3s]')" class="w-full text-left p-2.5 bg-studio-bg hover:bg-studio-border text-studio-paper rounded border border-studio-border transition truncate">
+              👁️ "如果有人告诉你[X]，千万别信…"
+            </button>
+            <button onclick="insertHook('镜头拉近，注意看这个容易被忽视的细节…')" class="w-full text-left p-2.5 bg-studio-bg hover:bg-studio-border text-studio-paper rounded border border-studio-border transition truncate">
+              🔍 "镜头拉近，注意看细节…"
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 底部：电影级分镜表 -->
+    <div class="bg-studio-card border border-studio-border p-6 rounded-lg space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-studio-border/60 pb-4">
+        <div>
+          <h2 class="text-lg font-bold text-studio-paper flex items-center gap-2">
+            <span>🎥</span> 导演分镜表 (Storyboard & Camera Direction)
+          </h2>
+          <p class="text-xs text-studio-muted mt-1 font-sans">结合景别、运镜轨迹与音效氛围，精确规划镜头组合</p>
+        </div>
+        <button onclick="addShot()" class="px-4 py-2 bg-studio-bg hover:bg-studio-border text-studio-gold border border-studio-gold/40 rounded text-xs font-sans transition">
+          + 添加新镜头
+        </button>
+      </div>
+
+      <div id="shotsContainer" class="space-y-3"></div>
+    </div>
+
+  </div>
+
+  <script>
+    let shots = [];
+    let testStartTime = null;
+    let testTimerInterval = null;
+
+    window.onload = function() {
+      const savedScript = localStorage.getItem('cine_full_script');
+      const savedShots = localStorage.getItem('cine_shots');
+      
+      if (savedScript) document.getElementById('fullScript').value = savedScript;
+      if (savedShots) {
+        shots = JSON.parse(savedShots);
+      } else {
+        shots = [
+          { camera: '特写 / 慢推镜', visual: '主角面部光影变幻，眼神看向镜头', audio: '把时间倒退10秒，回到故事发生的那一刻。[2s]', pause: 2, mood: '低沉大提琴背景音，环境微风' },
+          { camera: '全景 / 俯拍固定', visual: '工作台上散落着剪辑纸条与胶片', audio: '（无对白，纯音乐推进）', pause: 4, mood: '键盘敲击声，胶片走带特写音效' }
+        ];
+      }
+      renderShots();
+      calculateStats();
+    };
+
+    function calculateStats() {
+      const scriptText = document.getElementById('fullScript').value;
+      const speed = parseInt(document.getElementById('speedSelect').value);
+      
+      localStorage.setItem('cine_full_script', scriptText);
+
+      const pauseRegex = /\[(?:停顿)?(\d+(?:\.\d+)?)(?:s|秒)?\]/gi;
+      let textPauseSeconds = 0;
+      let match;
+
+      while ((match = pauseRegex.exec(scriptText)) !== null) {
+        textPauseSeconds += parseFloat(match[1]);
+      }
+
+      const cleanText = scriptText.replace(pauseRegex, '').replace(/\s+/g, '');
+      const wordCount = cleanText.length;
+      document.getElementById('statWords').innerText = wordCount;
+
+      let shotPauseSeconds = 0;
+      shots.forEach(shot => {
+        if (shot.pause) shotPauseSeconds += (parseFloat(shot.pause) || 0);
+      });
+
+      const totalPauseSeconds = (textPauseSeconds + shotPauseSeconds).toFixed(1);
+      document.getElementById('statPauses').innerText = `${totalPauseSeconds}s`;
+
+      const spokenSeconds = Math.ceil((wordCount / speed) * 60);
+      const totalSeconds = spokenSeconds + Math.ceil(parseFloat(totalPauseSeconds));
+
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      
+      document.getElementById('statDuration').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      document.getElementById('statShots').innerText = shots.length;
+    }
+
+    function renderShots() {
+      const container = document.getElementById('shotsContainer');
+      container.innerHTML = '';
+
+      shots.forEach((shot, index) => {
+        const shotEl = document.createElement('div');
+        shotEl.className = 'grid grid-cols-1 md:grid-cols-12 gap-3 bg-studio-bg p-4 rounded border border-studio-border/80 items-start font-sans';
+        shotEl.innerHTML = `
+          <div class="md:col-span-1 text-studio-muted font-bold text-xs flex md:flex-col justify-between items-center py-1 font-mono">
+            <span>SCENE #${index + 1}</span>
+            <button onclick="removeShot(${index})" class="text-[11px] text-studio-rust hover:underline mt-1">删除</button>
+          </div>
+          <div class="md:col-span-2 space-y-1">
+            <label class="text-[10px] text-studio-muted uppercase tracking-wider">🎥 景别/运镜</label>
+            <input type="text" value="${shot.camera || ''}" oninput="updateShot(${index}, 'camera', this.value)" placeholder="例: 特写/慢推" class="w-full bg-studio-card border border-studio-border rounded p-2 text-xs text-studio-paper focus:border-studio-gold" />
+          </div>
+          <div class="md:col-span-3 space-y-1">
+            <label class="text-[10px] text-studio-muted uppercase tracking-wider">👁️ 画面视觉 (Visual)</label>
+            <textarea oninput="updateShot(${index}, 'visual', this.value)" rows="2" class="w-full bg-studio-card border border-studio-border rounded p-2 text-xs text-studio-paper focus:border-studio-gold">${shot.visual || ''}</textarea>
+          </div>
+          <div class="md:col-span-3 space-y-1">
+            <label class="text-[10px] text-studio-muted uppercase tracking-wider">🎙️ 对白/旁白 (Audio)</label>
+            <textarea oninput="updateShot(${index}, 'audio', this.value)" rows="2" class="w-full bg-studio-card border border-studio-border rounded p-2 text-xs text-studio-paper focus:border-studio-gold">${shot.audio || ''}</textarea>
+          </div>
+          <div class="md:col-span-1 space-y-1">
+            <label class="text-[10px] text-studio-gold font-medium uppercase tracking-wider">⏱️ 留白(秒)</label>
+            <input type="number" step="0.5" min="0" value="${shot.pause || 0}" oninput="updateShot(${index}, 'pause', this.value)" class="w-full bg-studio-card border border-studio-border rounded p-2 text-xs text-studio-gold font-mono focus:border-studio-gold" />
+          </div>
+          <div class="md:col-span-2 space-y-1">
+            <label class="text-[10px] text-studio-muted uppercase tracking-wider">🎵 音效/氛围 (Mood)</label>
+            <textarea oninput="updateShot(${index}, 'mood', this.value)" rows="2" class="w-full bg-studio-card border border-studio-border rounded p-2 text-xs text-studio-paper focus:border-studio-gold">${shot.mood || ''}</textarea>
+          </div>
+        `;
+        container.appendChild(shotEl);
+      });
+
+      calculateStats();
+    }
+
+    /* 真实语速测算仪逻辑 */
+    function startSpeedTest() {
+      const text = document.getElementById('testText').value.replace(/\s+/g, '');
+      if (!text) return;
+      
+      testStartTime = Date.now();
+      document.getElementById('startTestBtn').classList.add('hidden');
+      document.getElementById('stopTestBtn').classList.remove('hidden');
+      document.getElementById('testStatus').innerText = '⏱️ 朗读中...';
+      document.getElementById('testStatus').className = 'text-studio-gold animate-pulse text-[10px]';
+      
+      testTimerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - testStartTime) / 1000).toFixed(1);
+        document.getElementById('testTimerDisplay').innerText = `${elapsed}s`;
+      }, 100);
+    }
+
+    function stopSpeedTest() {
+      clearInterval(testTimerInterval);
+      const elapsedSeconds = (Date.now() - testStartTime) / 1000;
+      const text = document.getElementById('testText').value.replace(/\s+/g, '');
+      const wordCount = text.length;
+      
+      if (elapsedSeconds < 1) return;
+      
+      const wpm = Math.round((wordCount / elapsedSeconds) * 60);
+      
+      document.getElementById('startTestBtn').classList.remove('hidden');
+      document.getElementById('stopTestBtn').classList.add('hidden');
+      document.getElementById('testStatus').innerText = '✅ 测量完成';
+      document.getElementById('testStatus').className = 'text-emerald-400 text-[10px]';
+      
+      document.getElementById('testedWpmResult').innerText = wpm;
+      document.getElementById('testResultBox').classList.remove('hidden');
+    }
+
+    function applyTestedWpm() {
+      const wpm = parseInt(document.getElementById('testedWpmResult').innerText);
+      if (wpm > 0) {
+        const speedSelect = document.getElementById('speedSelect');
+        let customOpt = new Option(`🎯 我的实测语速 (${wpm}字/分)`, wpm);
+        speedSelect.add(customOpt);
+        customOpt.selected = true;
+        calculateStats();
+        alert(`已成功将全片预估基准设为你的实测语速：${wpm} 字/分钟！`);
+      }
+    }
+
+    function scrollToTester() {
+      document.getElementById('speedTesterPanel').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function insertPauseTag(seconds) {
+      const textarea = document.getElementById('fullScript');
+      textarea.value += ` [${seconds}s] `;
+      calculateStats();
+    }
+
+    function addShot() {
+      shots.push({ camera: '', visual: '', audio: '', pause: 0, mood: '' });
+      saveAndRenderShots();
+    }
+
+    function removeShot(index) {
+      shots.splice(index, 1);
+      saveAndRenderShots();
+    }
+
+    function updateShot(index, field, value) {
+      shots[index][field] = value;
+      localStorage.setItem('cine_shots', JSON.stringify(shots));
+      calculateStats();
+    }
+
+    function saveAndRenderShots() {
+      localStorage.setItem('cine_shots', JSON.stringify(shots));
+      renderShots();
+    }
+
+    function insertHook(hookText) {
+      const textarea = document.getElementById('fullScript');
+      textarea.value = hookText + '\n' + textarea.value;
+      calculateStats();
+    }
+
+    function clearAll() {
+      if (confirm('确定要清空当前的脚本与分镜吗？')) {
+        document.getElementById('fullScript').value = '';
+        shots = [];
+        localStorage.removeItem('cine_full_script');
+        localStorage.removeItem('cine_shots');
+        renderShots();
+      }
+    }
+
+    function exportMarkdown() {
+      const scriptText = document.getElementById('fullScript').value;
+      const duration = document.getElementById('statDuration').innerText;
+      const wordCount = document.getElementById('statWords').innerText;
+      const pauseCount = document.getElementById('statPauses').innerText;
+
+      let md = `# 🎬 CINE SCRIPT // 导演剪辑脚本\n\n`;
+      md += `- **预估总片长**: ${duration}\n`;
+      md += `- **纯口播字数**: ${wordCount} 字\n`;
+      md += `- **情绪留白/空镜头**: ${pauseCount}\n\n`;
+      md += `## ✍️ 全篇叙事文案\n${scriptText}\n\n`;
+      md += `## 🎥 导演分镜明细\n\n`;
+      md += `| 场次 | 景别/运镜 | 画面描述 (Visual) | 对白/旁白 (Audio) | 留白 | 音效/氛围 |\n`;
+      md += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+
+      shots.forEach((shot, i) => {
+        md += `| #${i + 1} | ${shot.camera || '-'} | ${(shot.visual || '').replace(/\n/g, ' ')} | ${(shot.audio || '').replace(/\n/g, ' ')} | ${shot.pause || 0}s | ${(shot.mood || '').replace(/\n/g, ' ')} |\n`;
+      });
+
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `cine-script-${Date.now()}.md`;
+      a.click();
+    }
+  </script>
+</body>
+</html>
